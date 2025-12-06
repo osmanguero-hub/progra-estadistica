@@ -20,27 +20,48 @@ datos_ejemplo = [
 
 def buscar_amazon(producto):
     try:
-        url = f"https://www.amazon.com.mx/s?k={producto}"
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        r = requests.get(url, headers=headers, timeout=5)
-        soup = BeautifulSoup(r.content, 'html.parser')
+        url = f"https://www.amazon.com.mx/s?k={producto.replace(' ', '+')}"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'es-MX,es;q=0.9,en;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+        }
+        r = requests.get(url, headers=headers, timeout=10)
         
+        if r.status_code != 200:
+            return None
+            
+        soup = BeautifulSoup(r.content, 'html.parser')
         productos = []
         items = soup.find_all('div', {'data-component-type': 's-search-result'})
         
-        for item in items[:10]:
-            n = item.find('h2')
-            p = item.find('span', class_='a-price-whole')
-            if n and p:
-                productos.append({
-                    'nombre': n.get_text(strip=True)[:50],
-                    'precio': float(p.get_text().replace(',', '').replace('$', ''))
-                })
+        for item in items:
+            try:
+                nombre_elem = item.find('h2', class_='a-size-mini')
+                if not nombre_elem:
+                    nombre_elem = item.find('span', class_='a-size-medium')
+                if not nombre_elem:
+                    nombre_elem = item.find('span', class_='a-size-base-plus')
+                if not nombre_elem:
+                    nombre_elem = item.find('h2')
+                
+                precio_elem = item.find('span', class_='a-price-whole')
+                
+                if nombre_elem and precio_elem:
+                    nombre = nombre_elem.get_text(strip=True)[:60]
+                    precio_texto = precio_elem.get_text(strip=True).replace(',', '').replace('$', '').replace('.', '')
+                    precio = float(precio_texto)
+                    
+                    productos.append({'nombre': nombre, 'precio': precio})
+                    
+                    if len(productos) >= 10:
+                        break
+            except:
+                continue
         
-        if len(productos) >= 10:
-            return productos
-        else:
-            return None
+        return productos if len(productos) >= 10 else None
     except:
         return None
 
